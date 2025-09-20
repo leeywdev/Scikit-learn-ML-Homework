@@ -81,10 +81,19 @@ def run(X, y, cv_list=[3,5,10,30]):
                 })
     return pd.DataFrame(results)
 
+def print_user_manual():
+    print("""
+    Usage:
+    1. Prepare the Wisconsin Cancer Dataset as a CSV file.
+    2. Call load_data(filepath) to load the data.
+    3. Call run_experiments(X, y, cv_list=[3, 5, 10, 30]) to run all experiments.
+    4. The function returns a DataFrame summarizing the best accuracy and parameters for each combination.
+    """)
 
 if __name__ == "__main__":
+    print_user_manual()
     X, y = load_data('../.cache/kagglehub/datasets/ninjacoding/breast-cancer-wisconsin-benign-or-malignant/versions/3/tumor.csv')
     results = run(X, y, cv_list=[3, 5, 10, 30])
-    print(results)
+    print("Results:\n", results)
     best_by_model = results.loc[results.groupby('model')['best_score'].idxmax()]
-    print(best_by_model[['model', 'scaler', 'K-fold', 'best_params', 'best_score']])
+    print("Best Results by Model:\n", best_by_model[['model', 'scaler', 'K-fold', 'best_params', 'best_score']])
