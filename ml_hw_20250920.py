@@ -4,14 +4,17 @@
 import kagglehub
 import numpy as np
 import pandas as pd
+import matplotlib as plt
 
-from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
+from sklearn import tree
+from sklearn.model_selection import GridSearchCV, cross_val_score
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.pipeline import Pipeline
-from sklearn.metrics import confusion_matrix, accuracy_score
+from sklearn.metrics import accuracy_score, ConfusionMatrixDisplay, confusion_matrix
+from os import system
 
 # Download latest version Kaggle Dataset
 path = kagglehub.dataset_download("ninjacoding/breast-cancer-wisconsin-benign-or-malignant")
@@ -26,7 +29,7 @@ def load_data(filepath):
 
     return X, y
 
-def run(X, y, cv_list=[3,5,10,30]):
+def run(X, y, cv_list=[5,10,15]):
 
     """
     여러가지 분류 모델을 다양한 데이터 스케일링, 하이퍼 파라미터로 수행합니다.
@@ -53,10 +56,24 @@ def run(X, y, cv_list=[3,5,10,30]):
     }
 
     param_grid = {
-        'dt_entropy': {'clf__max_depth': [3,5,10]},
-        'dt_gini': {'clf__max_depth': [3,5,10]},
-        'logreg': {'clf__C': [0.1, 1, 10]},
-        'svm': {'clf__C': [0.1, 1, 10], 'clf__kernel': ['linear', 'rbf']}
+        'dt_entropy': {
+            'clf__max_depth':  [3, 5, None], # 트리 최대 깊이
+            'clf__min_samples_split': [2, 5, 10], # 내부 노드 분할 최소 샘플 수
+        },
+        'dt_gini': {
+            'clf__max_depth':  [3, 5, None], # 트리 최대 깊이
+            'clf__min_samples_split': [2, 5, 10], # 내부 노드 분할 최소 샘플 수
+        },
+        'logreg': {
+            'clf__C': [0.1, 1, 10, 100], # 정규화 파라미터
+            'clf__penalty': ['l2'], # 정규화 종류, 'l1'은 'liblinear' 또는 'saga' solver에서만 지원
+            'clf__solver': ['liblinear', 'lbfgs'] # 최적화
+        },
+        'svm': {
+            'clf__C': [0.1, 1, 10, 100], # 정규화 파라미터
+            'clf__kernel': ['linear', 'rbf'], # 커널
+            'clf__gamma': ['scale','auto'], # ‘rbf’ 계수
+        }
     }
 
     results = []
@@ -68,7 +85,7 @@ def run(X, y, cv_list=[3,5,10,30]):
                     steps.append(('scaler', scaler))
                 steps.append(('clf', model))
                 pipe = Pipeline(steps)
-                grid = GridSearchCV(pipe, param_grid[model_name], cv=cv,scoring='accuracy')
+                grid = GridSearchCV(pipe, param_grid[model_name], cv=cv,scoring='accuracy', n_jobs=-1)
                 grid.fit(X, y)
                 best_score = grid.best_score_
                 best_params = grid.best_params_
@@ -86,14 +103,27 @@ def print_user_manual():
     Usage:
     1. Prepare the Wisconsin Cancer Dataset as a CSV file.
     2. Call load_data(filepath) to load the data.
-    3. Call run_experiments(X, y, cv_list=[3, 5, 10, 30]) to run all experiments.
+    3. Call run_experiments(X, y, cv_list=[5, 10, 15]) to run all experiments.
     4. The function returns a DataFrame summarizing the best accuracy and parameters for each combination.
     """)
+
+# def viz(clf):
+#     dot_data = tree.export_graphviz(clf,   # 의사결정나무 모형 대입
+#                                out_file = None,  # file로 변환할 것인가
+#                                feature_names = iris.feature_names,  # feature 이름
+#                                class_names = iris.target_names,  # target 이름
+#                                filled = True,           # 그림에 색상을 넣을것인가
+#                                rounded = True,          # 반올림을 진행할 것인가
+#                                special_characters = True)   # 특수문자를 사용하나
+
+# graph = graphviz.Source(dot_data)
+
 
 if __name__ == "__main__":
     print_user_manual()
     X, y = load_data('../.cache/kagglehub/datasets/ninjacoding/breast-cancer-wisconsin-benign-or-malignant/versions/3/tumor.csv')
-    results = run(X, y, cv_list=[3, 5, 10, 30])
+    results = run(X, y, cv_list=[5, 10, 15])
     print("Results:\n", results)
     best_by_model = results.loc[results.groupby('model')['best_score'].idxmax()]
     print("Best Results by Model:\n", best_by_model[['model', 'scaler', 'K-fold', 'best_params', 'best_score']])
+    # best_row = results.loc[results['best_score'].idxmax()]
