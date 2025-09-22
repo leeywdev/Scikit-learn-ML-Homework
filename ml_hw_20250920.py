@@ -4,7 +4,7 @@
 import kagglehub
 import numpy as np
 import pandas as pd
-import matplotlib as plt
+import matplotlib.pyplot as plt
 
 from sklearn import tree
 from sklearn.model_selection import GridSearchCV, cross_val_score
@@ -89,12 +89,18 @@ def run(X, y, cv_list=[5,10,15]):
                 grid.fit(X, y)
                 best_score = grid.best_score_
                 best_params = grid.best_params_
+
+                        # Confusion matrix (전체 데이터에 대해 예측)
+                y_pred = grid.predict(X)
+                cm = confusion_matrix(y, y_pred)
+
                 results.append({
                     'model': model_name,
                     'scaler': scaler_name,
                     'K-fold': cv,
                     'best_params': best_params,
-                    'best_score': best_score
+                    'best_score': best_score,
+                    'cm': cm
                 })
     return pd.DataFrame(results)
 
@@ -116,7 +122,7 @@ def print_user_manual():
 #                                rounded = True,          # 반올림을 진행할 것인가
 #                                special_characters = True)   # 특수문자를 사용하나
 
-# graph = graphviz.Source(dot_data)
+# graph = graphviz.Source(dot_data)        
 
 
 if __name__ == "__main__":
@@ -126,4 +132,32 @@ if __name__ == "__main__":
     print("Results:\n", results)
     best_by_model = results.loc[results.groupby('model')['best_score'].idxmax()]
     print("Best Results by Model:\n", best_by_model[['model', 'scaler', 'K-fold', 'best_params', 'best_score']])
+    
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(15,10))
+    axes = axes.flatten()
+
+    # 각 모델에 대해 혼동행렬 출력
+    for ax, (_, row) in zip(axes, best_by_model.iterrows()):
+        cm = row['cm']                      # run()에서 저장한 cm
+        model_name = row['model']
+        scaler_name = row['scaler']
+
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+        disp.plot(ax=ax, cmap='Blues', values_format='d', colorbar=False)
+        ax.set_title(f"{model_name} (scaler: {scaler_name})")
+
+    # for cls, ax in zip(best_by_model, axes.flatten()):
+    #     confusion_matrix(cls, 
+    #                         X, 
+    #                         y, 
+    #                         ax=ax, 
+    #                         cmap='Blues',
+    #                         display_labels=best_by_model.model)
+    #     ax.title.set_text(type(cls).__name__)
+    plt.tight_layout()  
+    plt.show()
+
     # best_row = results.loc[results['best_score'].idxmax()]
+  
+
+    #plt.show() # Confusion matrix 출력
